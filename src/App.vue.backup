@@ -1,0 +1,83 @@
+<template>
+  <Renderer
+    ref="renderer"
+    resize="window"
+    :orbit-ctrl="{ enableDamping: true, dampingFactor: 0.05, autoRotate: true }"
+    shadow
+  >
+    <Camera :position="{ y: 100, z: 100 }" />
+    <Scene>
+      <SpotLight
+        color="#db4437"
+        :intensity=".2"
+        :position="{ x: 150, z: 0 }"
+        :cast-shadow="true"
+        :shadow-map-size="{ width: 1024, height: 1024 }"
+      />
+      <SpotLight
+        color="#0f9d58"
+        :intensity=".2"
+        :position="{ x: -150, z: 0 }"
+        :cast-shadow="true"
+        :shadow-map-size="{ width: 1024, height: 1024 }"
+      />
+      <InstancedMesh
+        ref="imesh"
+        :count="NUM_INSTANCES"
+        :cast-shadow="true"
+        :receive-shadow="true"
+      >
+        <SphereGeometry :radius="5" />
+        <PhongMaterial />
+      </InstancedMesh>
+    </Scene>
+    <EffectComposer>
+      <RenderPass />
+      <UnrealBloomPass :strength="2" />
+    </EffectComposer>
+  </Renderer>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from "vue";
+import { Object3D, MathUtils } from "three";
+import {
+  Camera,
+  EffectComposer,
+  InstancedMesh,
+  PhongMaterial,
+  Renderer,
+  RenderPass,
+  SphereGeometry,
+  SpotLight,
+  Scene,
+  UnrealBloomPass,
+} from "troisjs";
+
+const NUM_INSTANCES = ref(2000);
+const imesh = ref();
+
+onMounted(() => {
+  const mesh = imesh.value.mesh;
+  const dummy = new Object3D();
+  const { randFloat: rnd, randFloatSpread: rndFS } = MathUtils;
+  for (let i = 0; i < NUM_INSTANCES.value; i++) {
+    dummy.position.set(rndFS(200), rndFS(200), rndFS(200));
+    const scale = rnd(0.2, 1);
+    dummy.scale.set(scale, scale, scale);
+    dummy.updateMatrix();
+    mesh!.setMatrixAt(i, dummy.matrix);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+});
+</script>
+
+<style>
+body,
+html {
+  margin: 0;
+}
+canvas {
+  display: block;
+}
+</style>
