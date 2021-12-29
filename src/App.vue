@@ -1,5 +1,5 @@
 <template>
-  <DatGui>
+  <!-- <DatGui>
     <DatFolder label="Red Light">
       <DatNumber
         v-model="gui.light1.position.x"
@@ -61,9 +61,9 @@
         label="I"
       />
     </DatFolder>
-  </DatGui>
+  </DatGui> -->
   <Renderer antialias orbit-ctrl alpha ref="rendererRef" resize="window">
-    <Camera :position="{ z: 10 }"> </Camera>
+    <Camera :position="{ z: 500 }"> </Camera>
     <Scene ref="sceneRef">
       <PointLight
         :intensity="1"
@@ -73,8 +73,8 @@
       <Sphere :radius="100" :width-segments="64" :height-segments="64">
         <PhysicalMaterial></PhysicalMaterial>
       </Sphere>
-      <PointLight :intensity="50" :position="{ x: 2, y: 3, z: 4 }"></PointLight>
-      <PointLight
+      <!-- <PointLight :intensity="50" :position="{ x: 2, y: 3, z: 4 }"></PointLight> -->
+      <!-- <PointLight
         :intensity="gui.light1.intensity"
         :position="{
           x: gui.light1.position.x,
@@ -100,7 +100,7 @@
         >
           <Texture src="/assets/textures/normalMap.jpeg" />
         </StandardMaterial>
-      </Sphere>
+      </Sphere> -->
     </Scene>
   </Renderer>
 </template>
@@ -165,28 +165,28 @@ const onMouseMove = (event: any) => {
 };
 
 onMounted(() => {
-  pointer.window.x = window.innerWidth / 2;
-  pointer.window.y = window.innerHeight / 2;
+  // pointer.window.x = window.innerWidth / 2;
+  // pointer.window.y = window.innerHeight / 2;
 
-  document.addEventListener("mousemove", onMouseMove);
+  // document.addEventListener("mousemove", onMouseMove);
 
-  const renderer = rendererRef.value as RendererPublicInterface;
-  const sphere = (sphereRef.value as MeshPublicInterface).mesh;
-  const light = lightRef.value.light;
-  const scene = sceneRef.value.scene;
+  // const renderer = rendererRef.value as RendererPublicInterface;
+  // const sphere = (sphereRef.value as MeshPublicInterface).mesh;
+  // const light = lightRef.value.light;
+  // const scene = sceneRef.value.scene;
 
-  const pointLightHelper = new three.PointLightHelper(light, 1);
-  scene.add(pointLightHelper);
+  // const pointLightHelper = new three.PointLightHelper(light, 1);
+  // scene.add(pointLightHelper);
 
-  renderer.onBeforeRender(() => {
-    pointer.target.x = pointer.mouse.x * 0.001;
-    pointer.target.y = pointer.mouse.y * 0.001;
+  // renderer.onBeforeRender(() => {
+  //   pointer.target.x = pointer.mouse.x * 0.001;
+  //   pointer.target.y = pointer.mouse.y * 0.001;
 
-    sphere!.rotation.x += 0.04;
-    sphere!.rotation.x += 0.5 * (pointer.target.x - sphere!.rotation.x);
-    sphere!.rotation.y += 0.5 * (pointer.target.y - sphere!.rotation.y);
-    sphere!.rotation.z += 0.5 * (pointer.target.y - sphere!.rotation.x);
-  });
+  //   sphere!.rotation.x += 0.04;
+  //   sphere!.rotation.x += 0.5 * (pointer.target.x - sphere!.rotation.x);
+  //   sphere!.rotation.y += 0.5 * (pointer.target.y - sphere!.rotation.y);
+  //   sphere!.rotation.z += 0.5 * (pointer.target.y - sphere!.rotation.x);
+  // });
 });
 </script>
 
