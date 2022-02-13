@@ -1,44 +1,89 @@
 <template>
-  <Renderer ref="renderer" pointer resize="window">
-    <Camera :position="{ z: 0 }" :fov="50" />
-    <Scene>
-      <Points ref="points" :position="{ z: -150 }">
-        <BufferGeometry :attributes="attributes" />
-        <ShaderMaterial
-          :props="{
-            blending: 2,
-            uniforms: uniforms,
-            vertexShader: vertexShader,
-            fragmentShader: fragmentShader,
-            depthTest: false,
-          }"
-        >
-          <Texture
-            src="https://assets.codepen.io/33787/sprite.png"
-            uniform="uTexture"
-          />
-        </ShaderMaterial>
-      </Points>
+  <!-- <DatGui>
+    <DatFolder label="Red Light">
+      <DatNumber
+        v-model="gui.light1.position.x"
+        :min="-10"
+        :max="10"
+        :step="0.01"
+        label="X"
+      />
+      <DatNumber
+        v-model="gui.light1.position.y"
+        :min="-10"
+        :max="10"
+        :step="0.01"
+        label="Y"
+      />
+      <DatNumber
+        v-model="gui.light1.position.z"
+        :min="-10"
+        :max="10"
+        :step="0.01"
+        label="Z"
+      />
+      <DatNumber
+        v-model="gui.light1.intensity"
+        :min="0"
+        :max="1000"
+        :step="0.01"
+        label="I"
+      />
+    </DatFolder>
+
+    <DatFolder label="Green Light">
+      <DatNumber
+        v-model="gui.light2.position.x"
+        :min="-10"
+        :max="10"
+        :step="0.01"
+        label="X"
+      />
+      <DatNumber
+        v-model="gui.light2.position.y"
+        :min="-10"
+        :max="10"
+        :step="0.01"
+        label="Y"
+      />
+      <DatNumber
+        v-model="gui.light2.position.z"
+        :min="-10"
+        :max="10"
+        :step="0.01"
+        label="Z"
+      />
+      <DatNumber
+        v-model="gui.light2.intensity"
+        :min="0"
+        :max="1000"
+        :step="0.01"
+        label="I"
+      />
+    </DatFolder>
+  </DatGui>-->
+  0.7, 0.2, 16, 100
+  <Renderer antialias orbit-ctrl alpha ref="rendererRef" resize="window">
+    <Camera :position="{ z: 3 }"></Camera>
+    <Scene ref="sceneRef">
+      <AmbientLight color="red"></AmbientLight>
+      <!-- <Points ref="torusRef">
+        <BoxGeometry :width="1" :height="1.5" :depth="1"></BoxGeometry>
+        <PointsMaterial :props="{ size: 0.1 }"></PointsMaterial>
+      </Points>-->
     </Scene>
     <EffectComposer>
       <RenderPass />
-      <UnrealBloomPass :strength="2" :radius="0" :threshold="0" />
-      <ZoomBlurPass :strength="zoomStrength" />
+      <UnrealBloomPass :strength=".1" />
+      <HalftonePass :radius=".1" :scatter="1" />
     </EffectComposer>
   </Renderer>
-  <a
-    href="#"
-    @click="updateColors"
-    @mouseenter="targetTimeCoef = 30"
-    @mouseleave="targetTimeCoef = 1"
-    >Random Colors</a
-  >
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import { DatGui, DatNumber, DatFolder } from "dat-gui-vue";
 import { ref, onMounted, reactive } from "vue";
-import { Clock, Color, MathUtils, Vector3 } from "three";
+import * as THREE from "three";
 import {
   Scene,
   Torus,
@@ -47,165 +92,152 @@ import {
   HalftonePass,
   UnrealBloomPass,
   Points,
-  lerp,
   Camera,
   Texture,
   Renderer,
   AmbientLight,
   PointLight,
   StandardMaterial,
-  ShaderMaterial,
-  ZoomBlurPass,
   PointsMaterial,
-  BufferGeometry,
+  BoxGeometry,
   MeshPublicInterface,
   RendererPublicInterface,
 } from "troisjs";
-import niceColors from "nice-color-palettes";
-const { randFloat: rnd, randInt, randFloatSpread: rndFS } = MathUtils;
+import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.js';
 
-const vertexShader = `
-  uniform float uTime;
-  attribute vec3 color;
-  attribute float size;
-  attribute float velocity;
-  varying vec4 vColor;
-  void main(){
-    vColor = vec4(color, 1.0);
-    vec3 p = vec3(position);
-    p.z = -150. + mod(position.z + uTime, 300.);
-    vec4 mvPosition = modelViewMatrix * vec4( p, 1.0 );
-    gl_PointSize = size * (-50.0 / mvPosition.z);
-    gl_Position = projectionMatrix * mvPosition;
-  }
-`;
-
-const fragmentShader = `
-  uniform sampler2D uTexture;
-  varying vec4 vColor;
-  void main() {
-    gl_FragColor = vColor * texture2D(uTexture, gl_PointCoord);
-  }
-`;
-
-export default {
-  components: {
-    BufferGeometry,
-    Camera,
-    EffectComposer,
-    Points,
-    Renderer,
-    RenderPass,
-    Scene,
-    ShaderMaterial,
-    Texture,
-    UnrealBloomPass,
-    ZoomBlurPass,
+const rendererRef = ref();
+const sceneRef = ref();
+const torusRef = ref();
+const lightRef = ref();
+const pointer = {
+  mouse: {
+    x: 0,
+    y: 0,
   },
-  setup() {
-    const POINTS_COUNT = 50000;
-
-    const palette = niceColors[83];
-
-    const positions = new Float32Array(POINTS_COUNT * 3);
-    const colors = new Float32Array(POINTS_COUNT * 3);
-    const sizes = new Float32Array(POINTS_COUNT);
-    const v3 = new Vector3(),
-      color = new Color();
-    for (let i = 0; i < POINTS_COUNT; i++) {
-      v3.set(rndFS(200), rndFS(200), rndFS(300));
-      v3.toArray(positions, i * 3);
-      color.set(palette[Math.floor(rnd(0, palette.length))]);
-      color.toArray(colors, i * 3);
-      sizes[i] = rnd(5, 20);
-    }
-
-    const attributes = [
-      { name: "position", array: positions, itemSize: 3 },
-      { name: "color", array: colors, itemSize: 3 },
-      { name: "size", array: sizes, itemSize: 1 },
-    ];
-
-    const uniforms = { uTime: { value: 0 } };
-
-    const clock = new Clock();
-
-    const timeCoef = 1,
-      targetTimeCoef = 1;
-
-    return {
-      POINTS_COUNT,
-      attributes,
-      uniforms,
-      vertexShader,
-      fragmentShader,
-      clock,
-      timeCoef,
-      targetTimeCoef,
-    };
+  target: {
+    x: 0,
+    y: 0,
   },
-  data() {
-    return {
-      zoomStrength: 0,
-    };
-  },
-  mounted() {
-    const renderer = this.$refs.renderer;
-    const positionN = renderer.three.pointer.positionN;
-    const points = this.$refs.points.points;
-
-    renderer.onBeforeRender(() => {
-      this.timeCoef = lerp(this.timeCoef, this.targetTimeCoef, 0.02);
-      this.uniforms.uTime.value += this.clock.getDelta() * this.timeCoef * 4;
-      this.zoomStrength = this.timeCoef * 0.004;
-
-      const da = 0.05;
-      const tiltX = lerp(points.rotation.x, positionN.y * da, 0.02);
-      const tiltY = lerp(points.rotation.y, -positionN.x * da, 0.02);
-      points.rotation.set(tiltX, tiltY, 0);
-    });
-  },
-  methods: {
-    updateColors() {
-      const colorAttribute = this.$refs.points.geometry.attributes.color;
-      const ip = randInt(0, 99);
-      const palette = niceColors[ip];
-      console.log(ip);
-      const color = new Color();
-      for (let i = 0; i < this.POINTS_COUNT; i++) {
-        color.set(palette[randInt(0, palette.length)]);
-        color.toArray(colorAttribute.array, i * 3);
-      }
-      colorAttribute.needsUpdate = true;
-    },
+  window: {
+    x: 0,
+    y: 0,
   },
 };
+const gui = reactive({
+  light1: {
+    position: {
+      x: -2.2,
+      y: -1.2,
+      z: 1.7,
+    },
+    intensity: 50,
+  },
+  light2: {
+    position: {
+      x: 7.4,
+      y: 6.6,
+      z: 1.7,
+    },
+    intensity: 250,
+  },
+});
+
+const onMouseMove = (event: any) => {
+  pointer.mouse.x = event.clientX - pointer.window.x;
+  pointer.mouse.y = event.clientY - pointer.window.y;
+};
+
+onMounted(() => {
+  // pointer.window.x = window.innerWidth / 2;
+  // pointer.window.y = window.innerHeight / 2;
+  // document.addEventListener("mousemove", onMouseMove);
+  // const renderer = rendererRef.value as RendererPublicInterface;
+  // const sphere = (sphereRef.value as MeshPublicInterface).mesh;
+  // const light = lightRef.value.light;
+  const scene = sceneRef.value.scene;
+  const group = new THREE.Group();
+  scene.add(group);
+
+  // Create a torus know with basic geometry & material
+  const geometry = new THREE.BoxGeometry(1, 1.5, 1);
+  const torusKnot = new THREE.Mesh(geometry);
+
+  // Instantiate a sampler so we can use it later
+  const sampler = new MeshSurfaceSampler(torusKnot).build();
+
+  // Array used to store all points coordinates
+  const vertices = [];
+  // Create a dummy Vector to store the sampled coordinates
+  const tempPosition = new THREE.Vector3();
+  // Loop to sample a coordinate for each points
+  for (let i = 0; i < 10000; i++) {
+    // Sample a random position in the torus
+    sampler.sample(tempPosition);
+    // Push the coordinates of the sampled coordinates into the array
+    vertices.push(tempPosition.x, tempPosition.y, tempPosition.z);
+  }
+
+  // Create a geometry for the points
+  const pointsGeometry = new THREE.BufferGeometry();
+  // Define all points positions from the previously created array
+  pointsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  // Define the matrial of the points
+  const pointsMaterial = new THREE.PointsMaterial({
+    color: 0xff61d5,
+    size: 0.03
+  });
+  // Create an instance of points based on the geometry & material
+  const points = new THREE.Points(pointsGeometry, pointsMaterial);
+  // Add them into the main group
+  group.add(points);
+  // const geometry = new Three.TorusGeometry(0.7, 0.2, 16, 100);
+  // const material = new Three.PointsMaterial({
+  //   size: 0.01,
+  // });
+  // const points = new Three.Points(geometry, material);
+
+  // const particlesGeometry = new Three.BufferGeometry();
+  // const particlesCount = 50000;
+  // const positionArray = new Float32Array(particlesCount * 3);
+  // for (let i = 0; i < particlesCount * 3; i++) {
+  //   positionArray[i] = (Math.random() - 0.5) * 5;
+  // }
+  // particlesGeometry.setAttribute(
+  //   "position",
+  //   new Three.BufferAttribute(positionArray, 3)
+  // );
+  // const particlesMaterial = new Three.PointsMaterial({
+  //   size: 0.005,
+  //   color: "blue"
+  // });
+  // const particlesMesh = new Three.Points(particlesGeometry, particlesMaterial);
+  // scene.add(particlesMesh);
+  // scene.add(points);
+  // const pointLightHelper = new Three.PointLightHelper(light, 1);
+  // scene.add(pointLightHelper);
+  // renderer.onBeforeRender(() => {
+  //   pointer.target.x = pointer.mouse.x * 0.001;
+  //   pointer.target.y = pointer.mouse.y * 0.001;
+  //   sphere!.rotation.x += 0.04;
+  //   sphere!.rotation.x += 0.5 * (pointer.target.x - sphere!.rotation.x);
+  //   sphere!.rotation.y += 0.5 * (pointer.target.y - sphere!.rotation.y);
+  //   sphere!.rotation.z += 0.5 * (pointer.target.y - sphere!.rotation.x);
+  // });
+  const renderer = rendererRef.value as RendererPublicInterface;
+  // const torus = (torusRef.value as MeshPublicInterface).mesh;
+  // renderer.onBeforeRender(() => {
+  //   torus!.rotation.y += 0.02;
+  // });
+});
 </script>
 
 <style>
 body,
 html {
   margin: 0;
-  padding: 0;
+  background: rgb(24, 24, 24);
 }
 canvas {
   display: block;
-}
-a {
-  font-family: "Montserrat", sans-serif;
-  font-size: 30px;
-  position: absolute;
-  top: calc(50% - 25px);
-  left: calc(50% - 150px);
-  width: 300px;
-  height: 50px;
-  line-height: 50px;
-  box-sizing: border-box;
-  text-align: center;
-  text-decoration: none;
-  background-color: rgba(0, 0, 0, 0.5);
-  color: #fff;
-  border: 1px solid #fff;
-  border-radius: 50px;
 }
 </style>
